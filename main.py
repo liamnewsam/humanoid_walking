@@ -14,13 +14,26 @@ spec.worldbody.add_geom(
 model = spec.compile()
 data = mujoco.MjData(model)
 
-mujoco.viewer.launch(model, data)
+#mujoco.viewer.launch(model, data)
 
 # Make renderer, render and show the pixels
-'''
-with mujoco.Renderer(model) as renderer:
-  mujoco.mj_forward(model, data)
-  renderer.update_scene(data)
-  media.write_image("test.png", renderer.render())
 
-'''
+pelvisID = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
+#with mujoco.Renderer(model) as renderer:
+#  mujoco.mj_forward(model, data)
+#  print(data.xpos[pelvisID])
+#  renderer.update_scene(data)
+
+
+import time
+with mujoco.viewer.launch_passive(model, data) as viewer:
+
+    while viewer.is_running():
+        
+        print(data.xpos[pelvisID])
+        
+
+        step_start = time.time()
+        mujoco.mj_step(model, data)
+        viewer.sync()
+        time.sleep(max(0, model.opt.timestep - (time.time() - step_start)))
