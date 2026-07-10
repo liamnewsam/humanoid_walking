@@ -20,9 +20,14 @@ class Policy(nn.Module):
             nn.Tanh(),
             nn.Linear(512, 512),
             nn.Tanh(),
+        ])
+
+        self.actionHead = nn.Sequential([
             nn.Linear(512, actionDim),
             nn.Tanh()
         ])
+
+        self.valueHead = nn.Linear(512, 1)
 
         self.longIONet = nn.Sequential([
             nn.Conv1d(1, 32, kernel_size=6, stride=3),
@@ -30,12 +35,12 @@ class Policy(nn.Module):
             nn.Conv1d(32, 16, kernel_size=4, stride=2),
             nn.ReLU()
         ])
-        self.shortInput = np.zeros((4,self.actionDim,), dtype=np.float16)
-        self.shortOutput = np.zeros((4,self.obsDim,), dtype=np.float16)
+        #self.shortInput = np.zeros((4,self.actionDim,), dtype=np.float16)
+        #self.shortOutput = np.zeros((4,self.obsDim,), dtype=np.float16)
 
-        self.longIO = np.zeros((66,self.obsActDim), dtype=np.float16)
+        #self.longIO = np.zeros((66,self.obsActDim), dtype=np.float16)
         
-        self.prevAction = np.zeros(self.actionDim)
+        #self.prevAction = np.zeros(self.actionDim)
 
     def awaken(self, obs):
         self.shortInput[:] = obs
@@ -45,18 +50,28 @@ class Policy(nn.Module):
 
         self.prevAction = obs
     
-    def forward(self, obs, c):
+    def forward(self, shortInput, shortOutput, longIO, c):
 
-        self.shortInput = np.concatenate(([self.prevAction], self.shortInput[:-1]))
-        self.shortOutput = np.concatenate(([obs], self.shortOutput[:-1]))
-        self.longIO = np.concatenate((np.stack([obs, self.prevAction]), self.longIO[:-1]))
+        #self.shortInput = np.concatenate(([self.prevAction], self.shortInput[:-1]))
+        #self.shortOutput = np.concatenate(([obs], self.shortOutput[:-1]))
+        #self.longIO = np.concatenate((np.stack([obs, self.prevAction]), self.longIO[:-1]))
         
-        longIOEmbedding = self.longIONet(self.longIO)
+        longIOEmbedding = self.longIONet(longIO)
 
-        input = np.vstack([c, np.vstack([self.shortOutput, self.shortInput]), longIOEmbedding])
+        input = np.vstack([c, np.vstack([shortOutput, shortInput]), longIOEmbedding])
 
-        meansNormalized = self.baseNet(input)
+        bodyOutput = self.baseNet(input)
 
-        self.prevAction = meansNormalized[:]
+        meansNormalized = self.actionHead(bodyOutput)
 
-        return meansNormalized
+        value = self.valudHead(bodyOutput)
+
+        #self.prevAction = meansNormalized[:]
+
+        return meansNormalized, value
+    
+
+    def evaluate(self, obs, acts):
+        
+        pass
+        # return dist.log_prob(action, value, dist.entropy())
